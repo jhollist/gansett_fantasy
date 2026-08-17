@@ -1,3 +1,6 @@
+library(readr)
+library(dplyr)
+
 league <- tibble::tibble(
   team =  c("Like a touchdown in your mouth",
     "Jeff'd it up!",
@@ -28,9 +31,9 @@ draft_order <- function(df){
   arrange(bind_rows(losers, not_losers), draft_position)
 }
 
-draft_order(league)
+# draft_order(league)
 
-x <- readr::read_csv("draft_2026.csv")
+draft_2026 <- readr::read_csv("draft_2026.csv")
 
 make_draft <- function(first_round, rounds = 4){
   all_rounds <- first_round |>
@@ -45,5 +48,7 @@ make_draft <- function(first_round, rounds = 4){
     select(team, round, selection = draft_position)
 }
 
-make_draft(x, 13) |> View()
+full_draft_2026 <- make_draft(draft_2026, 13) |>
+  left_join(read_csv("keepers.csv"))
 
+View(full_draft_2026)
