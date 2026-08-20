@@ -40,15 +40,23 @@ make_draft <- function(first_round, rounds = 4){
     mutate(round = 1)
   for(i in 1:rounds){
     if(i > 1){
-      all_rounds <- bind_rows(all_rounds, arrange(mutate(first_round, round = i),
-                                                desc(draft_position)))
+      if(i%%2 == 0){
+        all_rounds <- bind_rows(all_rounds, arrange(mutate(first_round, round = i),
+                                                  desc(draft_position)))
+      } else {
+        all_rounds <- bind_rows(all_rounds, arrange(mutate(first_round, round = i),
+                                                    draft_position))
+      }
     }
   }
-  mutate(all_rounds, draft_position = 1:n()) |>
-    select(team, round, selection = draft_position)
+  mutate(all_rounds, overall_position = 1:n()) |>
+    mutate(.by = round, round_position = 1:n()) |>
+    select(team, round, round_position, overall_position)
 }
 
 full_draft_2026 <- make_draft(draft_2026, 13) |>
   left_join(read_csv("keepers.csv"))
 
 View(full_draft_2026)
+
+boris_chen_tier <- read_csv("https://s3-us-west-1.amazonaws.com/fftiers/out/weekly-ALL.csv")
