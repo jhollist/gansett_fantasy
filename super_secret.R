@@ -1,5 +1,7 @@
 library(readr)
 library(dplyr)
+library(ffanalytics)
+library(stringr)
 
 league <- tibble::tibble(
   team =  c("Like a touchdown in your mouth",
@@ -59,4 +61,35 @@ full_draft_2026 <- make_draft(draft_2026, 13) |>
 
 View(full_draft_2026)
 
-boris_chen_tier <- read_csv("https://s3-us-west-1.amazonaws.com/fftiers/out/weekly-ALL.csv")
+# https://s3-us-west-1.amazonaws.com/fftiers/out/weekly-ALL.csv
+boris_chen_tier <- read_csv("https://s3-us-west-1.amazonaws.com/fftiers/out/weekly-ALL.csv") |>
+  rename(chen_rank = Rank)
+
+# https://fantasyfootballanalytics.net/2016/06/ffanalytics-r-package-fantasy-football-data-analysis.html
+my_scrape <- scrape_data(src = c("CBS", "ESPN", "FantasySharks","FFToday",
+                                 "Walterfootball"),
+                         pos = c("QB", "RB", "WR", "TE", "K"),
+                         season = NULL, # NULL grabs the current season
+                         week = NULL) # NULL grabs the current week
+
+summary <- projections_table(my_scrape) |>
+  add_player_info() |>
+  mutate(Player.Name = paste(first_name, last_name)) |>
+  filter(avg_type == "average") |>
+  select(Player.Name, age, team, proj_points = points, proj_points_floor = floor,
+         proj_point_ceiling = ceiling)
+
+draft_data <- left_join(summary, boris_chen_tier)
+
+# https://www.fantasypros.com/nfl/real-time-adp/
+fantasy_pros <- read_csv("FantasyPros_Real-Time_ADP_Redraft-Half-PPR_All_14team_2026-08-20.csv",
+                         skip = 2) |>
+  mutate(Name = trimws(sub("\\s+[A-Z]{3}\\s*\\(\\d+\\)$", "", Name))) |>
+  mutate(Name = str_remove(Name, "\\s+[A-Z]{2}\\s*\\(\\d+\\)$")) |>
+  select(Name, position_rank = POS.RK, real_time_adp = `REAL-TIME`,
+         round_rank = `PICK NUM.`, yahoo_rank = YAHOO, sleeper_rank = SLEEPER)
+
+draft_data <- left_join(draft_data, fantasy_pros, by = c("Player.Name" = "Name")) |>
+  arrange(yahoo_rank)
+
+write_csv(draft_data, "draft_data.csv")
